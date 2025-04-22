@@ -26,7 +26,7 @@ const DynamicJsonForm = ({
   schema,
   value,
   onChange,
-  maxDepth = 3,
+  maxDepth = 4,
 }: DynamicJsonFormProps) => {
   const isOnlyJSON = !isSimpleObject(schema);
   const [isJsonMode, setIsJsonMode] = useState(isOnlyJSON);
@@ -114,6 +114,7 @@ const DynamicJsonForm = ({
     path: string[] = [],
     depth: number = 0,
   ) => {
+    console.log({ depth, maxDepth, propSchema, currentValue, path });
     if (
       depth >= maxDepth &&
       (propSchema.type === "object" || propSchema.type === "array")
