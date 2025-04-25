@@ -114,7 +114,6 @@ const DynamicJsonForm = ({
     path: string[] = [],
     depth: number = 0,
   ) => {
-    console.log({ depth, maxDepth, propSchema, currentValue, path });
     if (
       depth >= maxDepth &&
       (propSchema.type === "object" || propSchema.type === "array")

@@ -19,6 +19,127 @@ import { useEffect, useState } from "react";
 import ListPane from "./ListPane";
 import JsonView from "./JsonView";
 
+// 递归渲染参数表单的组件
+const ParameterForm = ({
+  schema,
+  path = [],
+  value,
+  onChange,
+}: {
+  schema: JsonSchemaType;
+  path: string[];
+  value: any;
+  onChange: (newValue: any) => void;
+}) => {
+  const handleChange = (newValue: any) => {
+    onChange(newValue);
+  };
+
+  const paramKey = path[path.length - 1] || "";
+  const displayName = path.join(".");
+
+  if (schema.type === "boolean") {
+    return (
+      <div className="flex items-center space-x-2 mt-2">
+        <Checkbox
+          id={displayName}
+          name={displayName}
+          checked={!!value}
+          onCheckedChange={(checked: boolean) => handleChange(checked)}
+        />
+        <label
+          htmlFor={displayName}
+          className="text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          {schema.description || `Toggle ${paramKey}`}
+        </label>
+      </div>
+    );
+  } else if (schema.type === "string") {
+    return (
+      <Textarea
+        id={displayName}
+        name={displayName}
+        placeholder={schema.description}
+        value={value ?? ""}
+        onChange={(e) => handleChange(e.target.value)}
+        className="mt-1"
+      />
+    );
+  } else if (schema.type === "number" || schema.type === "integer") {
+    return (
+      <Input
+        type="number"
+        id={displayName}
+        name={displayName}
+        placeholder={schema.description}
+        value={value ?? ""}
+        onChange={(e) => handleChange(Number(e.target.value))}
+        className="mt-1"
+      />
+    );
+  } else if (schema.type === "object" && schema.properties) {
+    return (
+      <div className="mt-1 space-y-4 border border-gray-200 dark:border-gray-700 rounded-md p-3">
+        <h4 className="text-sm font-medium">
+          {schema.description || paramKey}
+        </h4>
+        {Object.entries(schema.properties).map(([key, propSchema]) => {
+          const newPath = [...path, key];
+          const propValue =
+            value?.[key] ?? generateDefaultValue(propSchema as JsonSchemaType);
+
+          return (
+            <div key={key} className="ml-2">
+              <Label
+                htmlFor={newPath.join(".")}
+                className="block text-sm font-medium text-gray-700"
+              >
+                {key}
+              </Label>
+              <ParameterForm
+                schema={propSchema as JsonSchemaType}
+                path={newPath}
+                value={propValue}
+                onChange={(newPropValue) => {
+                  const newValue = { ...(value || {}) };
+                  newValue[key] = newPropValue;
+                  handleChange(newValue);
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  } else if (schema.type === "array" && schema.items) {
+    return (
+      <div className="mt-1">
+        <DynamicJsonForm
+          schema={{
+            type: schema.type,
+            items: schema.items,
+            description: schema.description,
+          }}
+          value={value ?? []}
+          onChange={(newValue: JsonValue) => handleChange(newValue)}
+        />
+      </div>
+    );
+  } else {
+    // 对于其他类型或复杂情况，使用DynamicJsonForm
+    return (
+      <div className="mt-1">
+        <DynamicJsonForm
+          schema={schema}
+          value={value}
+          onChange={(newValue: JsonValue) => handleChange(newValue)}
+        />
+      </div>
+    );
+  }
+};
+
 const ToolsTab = ({
   tools,
   listTools,
@@ -168,96 +289,17 @@ const ToolsTab = ({
                         >
                           {key}
                         </Label>
-                        {prop.type === "boolean" ? (
-                          <div className="flex items-center space-x-2 mt-2">
-                            <Checkbox
-                              id={key}
-                              name={key}
-                              checked={!!params[key]}
-                              onCheckedChange={(checked: boolean) =>
-                                setParams({
-                                  ...params,
-                                  [key]: checked,
-                                })
-                              }
-                            />
-                            <label
-                              htmlFor={key}
-                              className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >
-                              {prop.description || "Toggle this option"}
-                            </label>
-                          </div>
-                        ) : prop.type === "string" ? (
-                          <Textarea
-                            id={key}
-                            name={key}
-                            placeholder={prop.description}
-                            value={(params[key] as string) ?? ""}
-                            onChange={(e) =>
-                              setParams({
-                                ...params,
-                                [key]: e.target.value,
-                              })
-                            }
-                            className="mt-1"
-                          />
-                        ) : prop.type === "object" || prop.type === "array" ? (
-                          <div className="mt-1">
-                            <DynamicJsonForm
-                              schema={{
-                                type: prop.type,
-                                properties: prop.properties,
-                                description: prop.description,
-                                items: prop.items,
-                              }}
-                              value={
-                                (params[key] as JsonValue) ??
-                                generateDefaultValue(prop)
-                              }
-                              onChange={(newValue: JsonValue) => {
-                                setParams({
-                                  ...params,
-                                  [key]: newValue,
-                                });
-                              }}
-                            />
-                          </div>
-                        ) : prop.type === "number" ||
-                          prop.type === "integer" ? (
-                          <Input
-                            type="number"
-                            id={key}
-                            name={key}
-                            placeholder={prop.description}
-                            value={(params[key] as string) ?? ""}
-                            onChange={(e) =>
-                              setParams({
-                                ...params,
-                                [key]: Number(e.target.value),
-                              })
-                            }
-                            className="mt-1"
-                          />
-                        ) : (
-                          <div className="mt-1">
-                            <DynamicJsonForm
-                              schema={{
-                                type: prop.type,
-                                properties: prop.properties,
-                                description: prop.description,
-                                items: prop.items,
-                              }}
-                              value={params[key] as JsonValue}
-                              onChange={(newValue: JsonValue) => {
-                                setParams({
-                                  ...params,
-                                  [key]: newValue,
-                                });
-                              }}
-                            />
-                          </div>
-                        )}
+                        <ParameterForm
+                          schema={prop}
+                          path={[key]}
+                          value={params[key]}
+                          onChange={(newValue) => {
+                            setParams({
+                              ...params,
+                              [key]: newValue,
+                            });
+                          }}
+                        />
                       </div>
                     );
                   },
